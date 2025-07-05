@@ -67,7 +67,71 @@ object IssuesRepository{
 
 fun Application.configureRouting() {
     routing {
+// GET /tasks: คืนค่า task ทั้งหมด
+        get("/tasks") {
+            val tasks = TaskRepository.getAll()
+            call.respond(HttpStatusCode.OK, tasks)
+        }
 
+        // GET /tasks/{id}: ค้นหาและคืนค่า task เพียงตัวเดียว
+        get("/tasks/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
+                return@get
+            }
+
+            val task = TaskRepository.getById(id)
+            if (task == null) {
+                call.respond(HttpStatusCode.NotFound, "Task not found")
+            } else {
+                call.respond(HttpStatusCode.OK, task)
+            }
+        }
+
+        // POST /tasks: เพิ่ม task ใหม่
+        post("/tasks") {
+            val taskRequest = call.receive<TaskRequest>()
+            val newTask = Task(
+                id = (TaskRepository.getAll().maxOfOrNull { it.id } ?: 0) + 1,
+                content = taskRequest.content,
+                isDone = taskRequest.isDone
+            )
+            TaskRepository.add(newTask)
+            call.respond(HttpStatusCode.Created, newTask)
+        }
+
+        // PUT /tasks/{id}: อัปเดต task ที่มีอยู่
+        put("/tasks/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
+                return@put
+            }
+            val taskRequest = call.receive<TaskRequest>()
+            val updatedTask = Task(id, taskRequest.content, taskRequest.isDone)
+            val isUpdated = TaskRepository.update(id, updatedTask)
+            if (isUpdated) {
+                call.respond(HttpStatusCode.OK, updatedTask)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Task not found")
+            }
+        }
+
+        // DELETE /tasks/{id}: ลบ task
+        delete("/tasks/{id}") {
+            val id = call.parameters["id"]?.toIntOrNull()
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid ID format")
+                return@delete
+            }
+            val isDeleted = TaskRepository.delete(id)
+            if (isDeleted) {
+                call.respond(HttpStatusCode.NoContent)
+            } else {
+                call.respond(HttpStatusCode.NotFound, "Task not found")
+            }
+        }
 
     }
 }
